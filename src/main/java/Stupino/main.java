@@ -9,46 +9,41 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 public class main {
-    public static void main(String[] args) throws IOException {
+
+    public static Document get_URL(String url) throws IOException {
+        var mainPage = Jsoup.connect(url).execute();
+        String main_site = mainPage.body();
+        Document Page_local = Jsoup.parse(main_site, "UTF-8");
+        return Page_local;
+    }
+
+    public static void parsing(String URL) throws IOException {
         String lineBreak = "\n";
         System.out.println("Подключение к главной страницы, ее парс" + lineBreak);
-        var mainPage = Jsoup.connect("https://stupinoadm.ru").execute();
 
-
-
-        String main_site = mainPage.body();
-
-        System.out.println("Успешное сохранение главной страницы." + lineBreak);
-
-        System.out.println("Парс новостей главной страницы." + lineBreak);
-        Document mainPageOpenParce = Jsoup.parse(main_site, "UTF-8");
-
-        Elements newsPostElements = mainPageOpenParce.getElementsByClass("teaser-tile");
-
+        Elements newsPostElements = get_URL(URL).getElementsByClass("teaser-tile");
 
         newsPostElements.forEach(newsPostElement -> {
             Elements newsURL = newsPostElement.getElementsByTag("a");
-            String newsLink = "https://stupinoadm.ru" + newsURL.attr("href");
+            String newsLink = URL + newsURL.attr("href");
+
             try {
                 System.out.println("Подключение к странице новости, ее парс");
-                var pageNews = Jsoup.connect(newsLink).execute();
+                Document newsPage = get_URL(newsLink);
 
-                String news_site = pageNews.body();
-
-
-                Document newsPage = Jsoup.parse(news_site, "UTF-8");
-
+                // Заголовок новости
                 Elements titleNewsPage = newsPage.getElementsByClass("headline");
                 String titleNews = titleNewsPage.text();
 
+                // Текст
                 Elements textNewsPage = newsPage.getElementsByClass("text");
                 String textNews = textNewsPage.text();
 
+                // Дата
                 Elements dateNewsPage = newsPage.getElementsByClass("date");
                 String dateNews = dateNewsPage.text().split(" ")[0];
 
                 String urlNews = newsLink;
-
                 System.out.println("Полученная информация из файла новости:");
                 System.out.println("Заголовок: " + titleNews); // Заголовок
                 System.out.println("Текст: " + textNews); // Текст
@@ -60,5 +55,9 @@ public class main {
                 e.printStackTrace();
             }
         });
+    }
+
+    public static void main(String[] args) throws IOException {
+        parsing("https://stupinoadm.ru");
     }
 }
