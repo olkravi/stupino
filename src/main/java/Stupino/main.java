@@ -1,19 +1,12 @@
 package Stupino;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
-
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -26,7 +19,7 @@ public class main {
         func func_crawler = new func();
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("192.168.99.100");
+        factory.setHost("127.0.0.1");
         factory.setPort(5672);
         factory.setVirtualHost("/");
         factory.setUsername("rabbitmq");
@@ -65,11 +58,26 @@ public class main {
             }
         });
 
+        Thread t3 = new Thread(new Runnable() {
+            @Override
+            public void run()
+            {
+                try {
+                    func_crawler.agrigation();
+                }
+                catch (UnknownHostException | ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         t1.start();
         t2.start();
+        t3.start();
 
         t1.join();
         t2.join();
+        t3.join();
 
     }
 }

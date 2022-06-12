@@ -7,9 +7,27 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
+
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeoutException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.concurrent.ExecutionException;
 
 public class func {
 
@@ -18,7 +36,7 @@ public class func {
 
     public func(){
         factory = new ConnectionFactory();
-        factory.setHost("192.168.99.100");
+        factory.setHost("127.0.0.1");
         factory.setPort(5672);
         factory.setVirtualHost("/");
         factory.setUsername("rabbitmq");
@@ -86,6 +104,19 @@ public class func {
                         System.out.println("Ссылка: " + url); // Ссылка
                         System.out.println(lineBreak); // Разделение
 
+                        // Создаем Json
+                        Json json = new Json(titleNews, textNews, url, dateNews);
+                        ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+                        String json_complete = ow.writeValueAsString(json);
+
+                        // Отправка в базу данных
+                        Client client = new PreBuiltTransportClient(
+                                Settings.builder().put("cluster.name","docker-cluster").build())
+                                .addTransportAddress(new TransportAddress(InetAddress.getByName("localhost"), 9300));
+                        String sha256hex = org.apache.commons.codec.digest.DigestUtils.sha256Hex(json_complete);
+                        client.prepareIndex("oleg", "_doc", sha256hex).setSource(json_complete, XContentType.JSON).get();
+                        
+
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -98,8 +129,25 @@ public class func {
             }
             //}
         }
+    }
 
+    public static void agrigation() throws UnknownHostException, ExecutionException, InterruptedException {
+        Client client = new PreBuiltTransportClient(
+                Settings.builder().put("cluster.name","docker-cluster").build())
+                .addTransportAddress(new TransportAddress(InetAddress.getByName("localhost"), 9300));
 
+        TermsAggregationBuilder aggregationBuilder = AggregationBuilders.terms("DATE_count").field("DATE.keyword");
+        SearchSourceBuilder searchSourceBuilder2 = new SearchSourceBuilder().aggregation(aggregationBuilder);
+        SearchRequest searchRequest2 = new SearchRequest().indices("oleg").source(searchSourceBuilder2);
+        SearchResponse searchResponse = client.search(searchRequest2).get();
+        Terms terms = searchResponse.getAggregations().get("DATE_count");
+
+        for (Terms.Bucket bucket : terms.getBuckets())
+            System.out.println("Count: " + bucket.getDocCount() + "\t\tDate: " + bucket.getKey());
+
+        client.close();
 
     }
+
+
 }
